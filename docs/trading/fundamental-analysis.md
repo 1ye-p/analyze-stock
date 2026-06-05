@@ -229,7 +229,35 @@ Step 4: 计算复合PEG
 | 生益科技 | 74 | 85 | +92% | 0.80 | 合理偏低 |
 | 海光信息 | 251 | 280 | +50% | 5.02 | 严重高估 |
 
-### 5.3 PS估值法（亏损/微利公司适用）
+### 5.3 FCF估值法（现金流视角）
+
+```
+FCF = 经营活动现金流净额 - 购建固定资产等支出
+FCF Yield = FCF / 总市值
+
+判断：
+  FCF Yield > 8% → 极强现金流，严重低估
+  FCF Yield 5~8% → 强现金流，低估
+  FCF Yield 2~5% → 正常
+  FCF Yield 0~2% → 偏弱
+  FCF Yield < 0 → 现金流为负，需警惕
+```
+
+**FCF vs 净利润对比**：
+| 情况 | 含义 |
+|------|------|
+| FCF > 净利润 | 利润质量高，钱是真赚到的 |
+| FCF < 净利润 | 利润可能有水分（应收账款堆积） |
+| FCF为负 | 危险信号，公司在"烧钱" |
+
+**数据来源**：
+```
+东方财富F10现金流表 API：
+  NETCASH_OPERATE：经营活动现金流净额
+  CONSTRUCT_LONG_ASSET：购建固定资产等支出
+```
+
+### 5.4 PS估值法（亏损/微利公司适用）
 
 ```
 PS = 总市值 / 年营业收入
@@ -411,7 +439,34 @@ curl -s --max-time 10 "https://emweb.securities.eastmoney.com/PC_HSF10/Sharehold
 
 返回JSON，关键子节点：`gdrs`（股东人数）、`sdltgd`（十大流通股东）、`jgcc`（机构持仓）
 
-### 9.5 注意事项
+**现金流数据 API（FCF计算）**：
+
+```bash
+curl -s --max-time 10 "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/xjllbAjaxNew?type=0&code={市场代码}{股票代码}" -H "Referer: https://emweb.securities.eastmoney.com" -H "User-Agent: Mozilla/5.0"
+```
+
+关键字段：
+| 字段 | 含义 |
+|------|------|
+| NETCASH_OPERATE | 经营活动现金流净额 |
+| CONSTRUCT_LONG_ASSET | 购建固定资产等支出 |
+
+### 9.5 事件驱动监控
+
+关注可能改变基本面的事件：
+- 重大合同/订单（营收影响>10%）
+- 并购重组（可能改变业务结构）
+- 股东增减持（大股东/管理层）
+- 股权激励/回购（管理层信心）
+- 政策变化（行业监管/补贴）
+- 产品/技术突破
+- 诉讼/合规风险
+
+数据获取：
+- 东方财富F10股东研究API：股东变动
+- WebSearch："{股票名称} 最新公告 重大事项"
+
+### 9.6 注意事项
 
 - 周末/非交易时段，API可能返回空数据，属正常现象
 - 港股数据需额外注意汇率风险和流动性差异
