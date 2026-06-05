@@ -25,3 +25,6 @@ node_modules/
 
 # Superpowers specs
 docs/superpowers/
+
+# Score snapshots (per-date, can get large)
+data/scores/
