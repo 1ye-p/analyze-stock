@@ -688,7 +688,7 @@ D. 套牢盘压力（含在上述维度中）
 
 Step 1: 弹窗让用户选择需要完整报告的标的
 
-  使用 AskUserQuestion 工具，multiSelect=true
+  ⚠️ 必须使用 AskUserQuestion 工具（multiSelect=true），禁止自己生成选择菜单或编号列表
   选项（最多3个，预留1个给工具自带的Other文本输入）：
     ☐ TOP 3完整报告（推荐）  ← 自动排名，前3名完整报告
     ☐ 全部标的完整报告       ← 输出所有标的完整报告
