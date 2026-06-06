@@ -128,15 +128,56 @@ TTM PE = 当前价格 / TTM EPS
 - 连续2+季度为负 → 标注"无法计算复合PEG"
 - 上年同期为负 → 该季度增速取绝对值，标注"低基数"
 
-#### 1.6 FCF计算（必须执行）
+#### 1.6 FCF计算（分层降级，必须执行）
 
+FCF Yield = 每股FCF / 当前价格 × 100%
+
+**优先级1：AKShare（推荐）**
+```bash
+conda run -n cQuanty python3 -c "
+import akshare as ak
+df = ak.stock_financial_abstract(symbol='{股票代码}')
+for idx, row in df.iterrows():
+    indicator = str(row['选项']) + ' ' + str(row['指标'])
+    if '每股企业自由现金流量' in indicator:
+        val = row.get('{最新年报期}', 'nan')
+        print(f'每股FCF: {val}')
+"
 ```
-FCF = 经营活动现金流净额 - 购建固定资产等支出
-FCF Yield = FCF / 总市值
 
-数据来源：东方财富F10现金流表
-  NETCASH_OPERATE：经营活动现金流净额
-  CONSTRUCT_LONG_ASSET：购建固定资产等支出
+**优先级2：AKShare 估算**
+```bash
+# 从 stock_financial_abstract 获取"经营现金流量净额"，乘以0.65估算FCF
+conda run -n cQuanty python3 -c "
+import akshare as ak
+df = ak.stock_financial_abstract(symbol='{股票代码}')
+for idx, row in df.iterrows():
+    indicator = str(row['选项']) + ' ' + str(row['指标'])
+    if '经营现金流量净额' in indicator:
+        val = row.get('{最新年报期}', 0)
+        fcf_est = float(val) * 0.65 / {总股本}
+        print(f'每股FCF(估算): {fcf_est:.4f}')
+"
+```
+
+**优先级3：Tushare（需Token）**
+```bash
+conda run -n cQuanty python3 -c "
+import tushare as ts
+# 若用户已提供token：ts.set_token('{token}')
+# 否则提示用户提供token
+pro = ts.pro_api()
+df = pro.fina_cashflow(ts_code='{股票代码}.{市场}', period='{最新季报期}', fields='n_cashflow_act,c_pay_acq_const_fiamt')
+# FCF = n_cashflow_act - c_pay_acq_const_fiamt
+"
+```
+
+**优先级4：跳过 + 标注缺失**
+```
+若所有降级方案均失败：
+  - 在报告中标注："⚠️ FCF数据缺失，估值评分中FCF Yield部分跳过"
+  - 增长质量维度的"经营现金流/净利"加分项也跳过
+  - 不影响其他维度的评分
 ```
 
 ---
@@ -355,10 +396,17 @@ D. 套牢盘压力（含在上述维度中）
 #### 6.1 加权计算总分
 
 ```
-总分 = 趋势结构×10% + 量价关系×10% + 价格形态×10%
-     + 增长质量×12% + 估值合理性×12% + 预期差×11%
-     + 分析师动向×8% + 资金流向×7% + 事件驱动×5%
-     + 风险因子×15%
+原始总分 = 趋势结构×10% + 量价关系×10% + 价格形态×10%
+         + 增长质量×12% + 估值合理性×12% + 预期差×11%
+         + 分析师动向×8% + 资金流向×7% + 事件驱动×5%
+         + 风险因子×15%
+
+理论满分：115分（含加分项）
+理论最低：-3分（含60MA扣分）
+
+归一化评分 = 原始总分 / 115 × 100
+
+输出格式：综合评分：{归一化}/100（原始：{原始总分}/115）
 ```
 
 #### 6.2 单只标的输出格式
