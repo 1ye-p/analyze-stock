@@ -160,7 +160,14 @@ for idx, row in df.iterrows():
 "
 ```
 
-**优先级3：Tushare（需Token）**
+**优先级3：东方财富F10 API 估算**
+```
+从 ZYZBAjaxNew API 获取 MGJYXJJE（每股经营现金流）
+每股FCF(估算) = MGJYXJJE × 总股本 × 0.65 / 总股本 = MGJYXJJE × 0.65
+FCF Yield = 每股FCF(估算) / 当前价格 × 100%
+```
+
+**优先级4：Tushare（需Token）**
 ```bash
 conda run -n cQuanty python3 -c "
 import tushare as ts
@@ -172,7 +179,7 @@ df = pro.fina_cashflow(ts_code='{股票代码}.{市场}', period='{最新季报�
 "
 ```
 
-**优先级4：跳过 + 标注缺失**
+**优先级5：跳过 + 标注缺失**
 ```
 若所有降级方案均失败：
   - 在报告中标注："⚠️ FCF数据缺失，估值评分中FCF Yield部分跳过"
