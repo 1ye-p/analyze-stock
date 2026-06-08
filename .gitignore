@@ -28,3 +28,4 @@ docs/superpowers/
 
 # Score snapshots (per-date, can get large)
 data/scores/
+.claude/memory
