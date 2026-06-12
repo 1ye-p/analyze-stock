@@ -503,29 +503,46 @@ if margin_data['margin_change'] is not None:
 #### 事件驱动评分（5%，满分10）
 
 ```python
-# 需要通过WebSearch获取近期事件
-# 默认无重大事件
-score = 5
-observation = "无重大事件"
-rule = "无事件→5"
+# 从脚本获取的events数据中分析
+events = data['events']
+if events.get('error'):
+    # 数据获取失败，默认无重大事件
+    score = 5
+    observation = "无重大事件（数据获取失败）"
+    rule = "无事件→5"
+else:
+    event_list = events.get('events', [])
+    has_major_positive = any(e['type'] == 'positive' and any(kw in e['title'] for kw in ['重大', '超预期', '大额']) for e in event_list)
+    has_positive = any(e['type'] == 'positive' for e in event_list)
+    has_negative = any(e['type'] == 'negative' for e in event_list)
+    has_major_negative = any(e['type'] == 'negative' and any(kw in e['title'] for kw in ['重大', '严重', '处罚']) for e in event_list)
 
-# 根据WebSearch结果调整
-if has_major_positive:
-    score = 10
-    observation = "重大正面事件"
-    rule = "重大正面→10"
-elif has_positive:
-    score = 7
-    observation = "正面事件"
-    rule = "正面→7"
-elif has_negative:
-    score = 3
-    observation = "负面事件"
-    rule = "负面→3"
-elif has_major_negative:
-    score = 0
-    observation = "重大负面事件"
-    rule = "重大负面→0"
+    if has_major_positive:
+        score = 10
+        observation = "重大正面事件"
+        rule = "重大正面→10"
+    elif has_positive:
+        score = 7
+        observation = "正面事件"
+        rule = "正面→7"
+    elif has_major_negative:
+        score = 0
+        observation = "重大负面事件"
+        rule = "重大负面→0"
+    elif has_negative:
+        score = 3
+        observation = "负面事件"
+        rule = "负面→3"
+    else:
+        score = 5
+        observation = "无重大事件"
+        rule = "无事件→5"
+
+# 输出近期重要事件
+if event_list:
+    important_events = [e for e in event_list[:5] if e['type'] != 'neutral']
+    if important_events:
+        observation += "；近期事件：" + "；".join([f"{e['date']} {e['title'][:20]}" for e in important_events[:3]])
 ```
 
 #### 风险因子评分（15%，满分10）
@@ -799,9 +816,24 @@ Step 3: 大模型基于数据进行分析
   - 计算所有标的评分 + 排名
   - 根据用户选择输出完整报告：
     - 选"TOP 3" → 输出前3名完整报告 + 其余简要排名表
-    - 选"全部" → 输出所有标的完整报告
-    - 选"指定标的" → 输出指定标的完整报告 + 其余简要排名表
+    - 选"全部" → 输出所有标的完整报告（不分批）
+    - 选"指定标的" → 输出用户指定的全部标的完整报告 + 其余简要排名表
+      ⚠️ 无论指定标的数量多少，都全部输出完整报告
 ```
+
+### 输出规则
+
+1. **先输出综合排名表**（所有标的）
+2. **再输出完整报告**：
+   - 选择"全部" → 输出所有标的完整报告，不分批
+   - 选择"指定标的"且数量>5 → 全部输出完整报告
+   - 每只标的的完整报告包含：
+     - 行情数据
+     - 估值明细
+     - 四维度评分表
+     - 评分推导详情（观察→规则→评分）
+     - 操作结论
+     - 风险提示
 
 ### 排名表格式
 

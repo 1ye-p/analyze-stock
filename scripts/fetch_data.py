@@ -434,6 +434,64 @@ def calculate_composite_peg(pe, quarterly_growth):
     return pe / geometric_avg
 
 
+def fetch_recent_events(code: str) -> dict:
+    """
+    获取近期事件（东方财富公告API）
+
+    Args:
+        code: 股票代码
+
+    Returns:
+        近期事件字典
+    """
+    # 判断市场
+    if code.startswith('6'):
+        ann_type = 'SHA'  # 沪市
+    else:
+        ann_type = 'SZA'  # 深市
+
+    url = f"https://np-anotice-stock.eastmoney.com/api/security/ann?sr=-1&page_size=10&page_index=1&ann_type={ann_type}&client_source=web&stock_list={code}"
+
+    try:
+        result = subprocess.run(
+            ['curl', '-s', '--max-time', '10', url],
+            capture_output=True
+        )
+
+        if result.returncode != 0:
+            return {'events': [], 'error': '获取失败'}
+
+        data = json.loads(result.stdout.decode('utf-8'))
+
+        if 'data' not in data or 'list' not in data['data']:
+            return {'events': [], 'error': '无数据'}
+
+        events = []
+        for item in data['data']['list'][:10]:
+            title = item.get('title', '')
+            date = item.get('notice_date', '')[:10]
+
+            # 判断事件类型
+            event_type = 'neutral'
+            if any(kw in title for kw in ['回购', '增持', '激励', '超预期', '增长', '中标', '签约', '合作']):
+                event_type = 'positive'
+            elif any(kw in title for kw in ['减持', '质押', '诉讼', '处罚', '风险', '亏损', '下滑', '下降']):
+                event_type = 'negative'
+            elif any(kw in title for kw in ['军工', '制裁', '限制', '黑名单', '实体清单', '管制']):
+                event_type = 'negative'
+
+            events.append({
+                'date': date,
+                'title': title,
+                'type': event_type
+            })
+
+        return {'events': events, 'error': None}
+
+    except Exception as e:
+        return {'events': [], 'error': str(e)}
+
+
 def _calculate_fib_levels(high52: float, low52: float) -> dict:
     """
     计算斐波那契回撤位
@@ -610,7 +668,10 @@ def fetch_basic_data(code: str, fetcher: DataFetcher, tushare_token: str = None)
     north_flow = fetch_north_flow(code, tushare_token)
     margin_data = fetch_margin_data(code, tushare_token)
 
-    # 5. 返回基础数据
+    # 5. 获取近期事件
+    events_data = fetch_recent_events(code)
+
+    # 6. 返回基础数据
     return {
         # 基础信息
         'code': code,
@@ -643,6 +704,9 @@ def fetch_basic_data(code: str, fetcher: DataFetcher, tushare_token: str = None)
         # 资金流向数据
         'north_flow': north_flow,
         'margin_data': margin_data,
+
+        # 近期事件
+        'events': events_data,
 
         # 斐波那契回撤位
         'fib_levels': _calculate_fib_levels(quote.high52, quote.low52),
